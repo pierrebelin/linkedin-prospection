@@ -1,0 +1,6 @@
+@LinkedInProspection_HostAddress = http://localhost:5080
+
+GET {{LinkedInProspection_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
