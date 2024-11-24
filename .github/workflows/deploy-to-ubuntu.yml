@@ -27,7 +27,7 @@ jobs:
         with:
           host: ${{ secrets.HOST }}
           username: ${{ secrets.USERNAME }}
-          key: ${{ secrets.SSH_KEY }}
+          password: ${{ secrets.PASSWORD }}
           source: "publish/*"
           target: ${{ secrets.TARGET }}
 
