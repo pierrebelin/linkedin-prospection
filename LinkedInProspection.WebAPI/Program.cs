@@ -1,10 +1,12 @@
 using LinkedInProspection.WebAPI.Application;
+using Microsoft.AspNetCore.Mvc;
 
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
 // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
 builder.Services.AddOpenApi();
+builder.Services.AddScoped<RetrieverService>();
 
 var app = builder.Build();
 
@@ -21,7 +23,7 @@ var summaries = new[]
     "Freezing", "Bracing", "Chilly", "Cool", "Mild", "Warm", "Balmy", "Hot", "Sweltering", "Scorching"
 };
 
-app.MapGet("/retriever", (RetrieverService service) => "OK");
+app.MapGet("/retriever", ([FromServices] RetrieverService service) => "OK");
 
 app.MapGet("/weatherforecast", () =>
     {
