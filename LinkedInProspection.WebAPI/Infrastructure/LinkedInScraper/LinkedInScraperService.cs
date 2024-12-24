@@ -48,7 +48,7 @@ public static class LinkedInScraperMapper
     public static Post[] Map(ScrapedPost? posts)
     {
         return posts?.Data
-            .Select(p => Post.Create(p.Text ?? "", ParseDate(p.PostedDate ?? "")))
+            .Select(p => Post.Restore(p.Text ?? "", ParseDate(p.PostedDate ?? "")))
             .ToArray() ?? [];
     }
     

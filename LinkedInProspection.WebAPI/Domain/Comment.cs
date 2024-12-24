@@ -1,7 +1,10 @@
-﻿namespace LinkedInProspection.WebAPI.Domain;
+﻿using System.Text.Json.Serialization;
+
+namespace LinkedInProspection.WebAPI.Domain;
 
 public class Comment
 {
+    [JsonConstructor]
     private Comment(string text, DateTime postedDate)
     {
         Text = text;

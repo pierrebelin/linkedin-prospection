@@ -20,4 +20,4 @@ public class GenerateIceBreakerQuery : IQuery
     }
 }
 
-public record GenerateIceBreakerResponse(IceBreaker[] IceBreakers);
+public record GenerateIceBreakerResponse(ContentIceBreaker[] IceBreakers);

@@ -1,13 +1,32 @@
 ﻿using System.Text.Json;
+using System.Text.Json.Serialization;
 using LinkedInProspection.WebAPI.Application.Interfaces;
 using LinkedInProspection.WebAPI.Domain;
 
 namespace LinkedInProspection.WebAPI.Infrastructure.LLM;
 
-public record ClaudeMessage(string Role, string Content);
-public record ClaudeRequest(string Model, int MaxTokens, ClaudeMessage[] Messages);
-public record ClaudeResponse(string Content);
-public record IceBreakerResponse(string Type, string Content, string OriginalContent);
+public record ClaudeMessage(
+    [property: JsonPropertyName("role")] string Role, 
+    [property: JsonPropertyName("content")] string Content);
+public record ClaudeRequest(
+    [property: JsonPropertyName("model")] string Model,
+    [property: JsonPropertyName("max_tokens")] int MaxTokens,
+    [property: JsonPropertyName("messages")] ClaudeMessage[] Messages);
+
+
+
+public record ClaudeResponse(
+    [property: JsonPropertyName("type")] string Type,
+    [property: JsonPropertyName("role")] string Role, 
+    [property: JsonPropertyName("content")] ClaudeContentResponse[] Content);
+public record ClaudeContentResponse(
+    [property: JsonPropertyName("text")] string Text);
+public record ClaudeResultsResponse(
+    [property: JsonPropertyName("results")] ClaudeResultResponse[] Results);
+public record ClaudeResultResponse(
+    [property: JsonPropertyName("type")] string Type,
+    [property: JsonPropertyName("originalContent")] string OriginalContent,
+    [property: JsonPropertyName("icebreakers")] string[] Icebreakers);
 
 public class ClaudeLLMService : ILLMService
 {
@@ -28,7 +47,7 @@ public class ClaudeLLMService : ILLMService
     private const string ICE_BREAKERS_PROMPT_TEMPLATE = @"
     Tu es un expert d'icebreaker. 
     Ton rôle est de sélectionner les posts et les commentaires qui sont les plus pertinents pour trouver les icebreakers.
-    Dans un premier temps, tu sélectionnes 6 éléments maximum parmi les posts et les commentaires qui sont les plus pertinents pour trouver les icebreakers.
+    Dans un premier temps, tu sélectionnes exactement 6 éléments (sauf si tu en reçois moins de 6 différents) parmi les posts et les commentaires qui sont les plus pertinents pour trouver les icebreakers.
     Ensuite, pour chaque élément, tu produiras 3 icebreakers différents.
 
     Voici un exemple d'icebreaker :
@@ -55,13 +74,15 @@ Depuis, plus de 48.000 opérations internes ont été déléguées de manière s
 
     Retourne UNIQUEMENT un objet JSON avec ce format exact, sans explications :
     {
-        ""type"": ""post ou comment"",
-        ""content"": ""icebreaker_ici"",
-        ""originalContent"": ""contenu_relatif_a_l'icebreaker""
+        ""results"": [{
+            ""type"": ""post ou comment"",
+            ""originalContent"": ""contenu_relatif_a_l'icebreaker"",
+            ""icebreakers"": [""icebreaker_ici"",""icebreaker2_ici""], // Tableau d'icebreakers
+        }]
     }
     ";
 
-    public async Task<IceBreaker[]> GetIceBreakers(ProspectInformation prospectInformation)
+    public async Task<ContentIceBreaker[]> GetIceBreakers(ProspectInformation prospectInformation)
     {
         var iceBreakersPrompt = ICE_BREAKERS_PROMPT_TEMPLATE
             .Replace("{postsLinkedIn}", JsonSerializer.Serialize(prospectInformation.Posts))
@@ -69,18 +90,24 @@ Depuis, plus de 48.000 opérations internes ont été déléguées de manière s
         
         var request = new ClaudeRequest(
             Model: MODEL,
-            MaxTokens: 1024,
+            MaxTokens: 2048,
             Messages: [
                 new ClaudeMessage("user", iceBreakersPrompt),
             ]
         );
 
         var response = await _httpClient.PostAsJsonAsync("messages", request);
-        response.EnsureSuccessStatusCode();
+        var content = await response.Content.ReadFromJsonAsync<ClaudeResponse>();
         
-        var result = await response.Content.ReadFromJsonAsync<ClaudeResponse>();
-        var content = JsonSerializer.Deserialize<IceBreakerResponse[]>(result!.Content);
-        return content?.Select(c => IceBreaker.Restore(IceBreakerType.Post, c.Content, c.OriginalContent, c.Type))
-            .ToArray() ?? [];
+        if (content?.Content == null || content.Content.Length == 0 || content.Content.First().Text == null)
+            throw new Exception("No icebreakers found");
+        
+        var iceBreakersResponse = JsonSerializer.Deserialize<ClaudeResultsResponse>(content.Content.First().Text)!;
+        return iceBreakersResponse.Results.Select(c =>
+            {
+                var type = Enum.Parse<IceBreakerType>(c.Type, true);
+                return ContentIceBreaker.Restore(type, c.OriginalContent, c.Icebreakers);
+            })
+            .ToArray();
     }
 }

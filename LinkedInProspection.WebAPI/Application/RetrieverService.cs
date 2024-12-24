@@ -7,12 +7,16 @@ namespace LinkedInProspection.WebAPI.Application;
 
 public class RetrieverService(ILinkedInScraperService linkedInScraperService, ILLMService llmService)
 {
-    public async Task<IceBreaker[]> GenerateIceBreakers(Username username, DateTime postedAfter)
+    public async Task<ContentIceBreaker[]> GenerateIceBreakers(Username username, DateTime postedAfter)
     {
         var posts = await linkedInScraperService.ScrapePosts(username, postedAfter);
         var comments = await linkedInScraperService.ScrapeComments(username, postedAfter);
+        
+        var latestPosts = posts.OrderByDescending(p => p.PostedDate).Take(5).ToArray();
+        var latestComments = comments.OrderByDescending(c => c.PostedDate).Take(5).ToArray();
 
-        var prospectInformation = ProspectInformation.Restore(posts, comments);
-        return await llmService.GetIceBreakers(prospectInformation);
+        var prospectInformation = ProspectInformation.Restore(latestPosts, latestComments);
+        var iceBreakers = await llmService.GetIceBreakers(prospectInformation);
+        return iceBreakers;
     }
 }

@@ -12,7 +12,7 @@ public class LinkedInScraperMapperTests
         var response = File.ReadAllText("Files/ScrapedComments.json");
         var comments = JsonSerializer.Deserialize<ScrapedComment>(response);
         var commentsParsed = LinkedInScraperMapper.Map(comments);
-        commentsParsed.Should().HaveCount(47);
+        commentsParsed.Should().HaveCount(50);
     }
     
     [Fact]
