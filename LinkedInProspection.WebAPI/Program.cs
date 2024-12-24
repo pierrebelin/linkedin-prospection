@@ -1,47 +1,27 @@
 using LinkedInProspection.WebAPI.Application;
+using LinkedInProspection.WebAPI.Application.GenerateIceBreakers;
+using LinkedInProspection.WebAPI.Infrastructure;
 using Microsoft.AspNetCore.Mvc;
 
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
 // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
-builder.Services.AddOpenApi();
-builder.Services.AddScoped<RetrieverService>();
+builder.Services.AddApplicationDependencies();
+builder.Services.AddInfrastructureDependencies();
 
 var app = builder.Build();
 
-// Configure the HTTP request pipeline.
-if (app.Environment.IsDevelopment())
+app.MapGet("/icebreakers", async (
+    [FromQuery] string username,
+    [FromQuery] string postedAfter,
+    [FromServices] IGenerateIceBreakerQueryHandler handler) =>
 {
-    app.MapOpenApi();
-}
-
-app.UseHttpsRedirection();
-
-var summaries = new[]
-{
-    "Freezing", "Bracing", "Chilly", "Cool", "Mild", "Warm", "Balmy", "Hot", "Sweltering", "Scorching"
-};
-
-app.MapGet("/retriever", ([FromServices] RetrieverService service) => "OK");
-
-app.MapGet("/weatherforecast", () =>
-    {
-        var forecast = Enumerable.Range(1, 5).Select(index =>
-                new WeatherForecast
-                (
-                    DateOnly.FromDateTime(DateTime.Now.AddDays(index)),
-                    Random.Shared.Next(-20, 55),
-                    summaries[Random.Shared.Next(summaries.Length)]
-                ))
-            .ToArray();
-        return forecast;
-    })
-    .WithName("GetWeatherForecast");
+    var query = GenerateIceBreakerQuery.Create(username, postedAfter);
+    var result = await handler.Handle(query);
+    return Results.Ok(result.IceBreakers);
+});
 
 app.Run();
 
-record WeatherForecast(DateOnly Date, int TemperatureC, string? Summary)
-{
-    public int TemperatureF => 32 + (int)(TemperatureC / 0.5556);
-}
+public partial class Program;
